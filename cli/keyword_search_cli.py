@@ -1,27 +1,10 @@
 import argparse
-import json
-import string
-from nltk.stem import PorterStemmer
-
-stemmer = PorterStemmer()
-
-table = str.maketrans("","",string.punctuation)
-stopwords_file_P=open("data/stopwords.txt", 'r', encoding='utf-8')
-stopwords_file = stopwords_file_P.read()
-stopwords_list = stopwords_file.splitlines()
-for index in range(len(stopwords_list)):
-    stopwords_list[index] = (stopwords_list[index].translate(table).lower())
-stopwords_set = set(stopwords_list)
-    
+import inverted_index
+import helpers
+import math
 
 def main() -> None:
-    
-    
-    movies_file_P=open("data/movies.json", 'r', encoding='utf-8')
-    movies_dict=json.load(movies_file_P)
-    
-    
-    results=[]
+    movies_dict=helpers.load_movies()
 
     parser = argparse.ArgumentParser(description="Keyword Search CLI")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
@@ -29,46 +12,70 @@ def main() -> None:
     search_parser = subparsers.add_parser("search", help="Search movies using keywords")
     search_parser.add_argument("query", type=str, help="Search query")
 
+    build_parser = subparsers.add_parser("build", help="build index object")
+
+    tf_parser = subparsers.add_parser("tf", help="term frequency")
+    tf_parser.add_argument("doc_id", type=int, help = "Document ID")
+    tf_parser.add_argument("term", type=str, help="Token")
+    
+    idf_parser = subparsers.add_parser("idf", help="Inverse document frequency")
+    idf_parser.add_argument("term", type=str, help="Token")
+    
+    tfidf_parser = subparsers.add_parser("tfidf", help="Term frequency * Inverse document frequency")
+    tfidf_parser.add_argument("doc_id", type=int, help = "Document ID")
+    tfidf_parser.add_argument("term", type=str, help="Token")
+    
     args = parser.parse_args()
 
     match args.command:
         case "search":
-            query_list = tokenize(args.query.lower().translate(table))
-            print(query_list)
+            inv = inverted_index.InvertedIndex()
+            inv.load()
+            results = []
+            query_list = helpers.tokenize(args.query)
             
-            for movie in movies_dict["movies"]:
-                title_list = tokenize(movie["title"].translate(table).lower())
-                if set(query_list) & set(title_list):
-                    results.append(movie["title"])
+            temp_list=[]
+            
+            for query_token in query_list:
+                temp_list=inv.get_document(query_token)[:5] 
+            
+            for id in temp_list:
+                print(f"id={id} title={inv.docmap[id]['title']}")
+            
             print(f"Searching for: {args.query}")  
+            
              
-            if(len(results)>=5):       
-                for index in range(5):
-                    print(f'{index+1}. {results[index]}')
-            else:
-                for index in range(len(results)):
-                    print(f'{index+1}. {results[index]}')
-            pass
+            # if(len(results)>=5):       
+            #     for index in range(5):
+            #         print(f'{index+1}. {results[index]}')
+            # else:
+            #     for index in range(len(results)):
+            #         print(f'{index+1}. {results[index]}')
+        case "build":
+            
+            inv = inverted_index.InvertedIndex()
+            inv.build()
+        case "tf":
+            inv = inverted_index.InvertedIndex()
+            inv.load()
+            term = helpers.single_tokenize(args.term)
+            print(args.doc_id,inv.get_tf(args.doc_id,term))
+        case "idf":
+            inv = inverted_index.InvertedIndex()
+            inv.load()
+            term = helpers.single_tokenize(args.term)
+            idf = math.log((len(inv.docmap) + 1) / (len(inv.get_document(term)) + 1))
+            print(f"Inverse document frequency of '{args.term}': {idf:.2f}")
+        case "tfidf":    
+            inv = inverted_index.InvertedIndex()
+            inv.load()
+            term = helpers.single_tokenize(args.term)
+            tf = inv.get_tf(args.doc_id,term)
+            idf = math.log((len(inv.docmap) + 1) / (len(inv.get_document(term)) + 1))
+            tf_idf = tf * idf
+            print(f"TF-IDF score of '{args.term}' in document '{args.doc_id}': {tf_idf:.2f}")
         case _:
             parser.print_help()
             
-    movies_file_P.close()
-    stopwords_file_P.close()
-
-def tokenize(string):
-    temp = []
-    temp = string.split()
-    index_list=[]
-    for index in range(len(temp)):
-        if temp[index] == " " or temp[index] in stopwords_set:
-            index_list.append(index)
-    reverse_index = reversed(index_list)
-    for index in reverse_index:  
-        temp[index] = " "
-        temp.remove(" ")
-    for index in range(len(temp)):
-        temp[index] = stemmer.stem(temp[index])
-    return temp
-
 if __name__ == "__main__":
     main()
