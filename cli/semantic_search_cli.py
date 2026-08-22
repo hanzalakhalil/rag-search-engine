@@ -1,14 +1,56 @@
 import argparse
-
+import lib.semantic_search as ss
+import util.helpers as helpers
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Semantic Search CLI")
+    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+    
+    verify_parser = subparsers.add_parser("verify" ,help="To verify model" )
+    
+    embed_parser = subparsers.add_parser("embed_text", help="Create embedding for given text")
+    embed_parser.add_argument("text", type=str, help="Text to be embedded")
+    
+    verify_embed_parser = subparsers.add_parser("verify_embeddings", help="verify embeddings")
+    
+    embed_query_parser = subparsers.add_parser("embed_query", help="Create embedding for given query")
+    embed_query_parser.add_argument("query", type=str, help="query to be embedded")
+    
+    search_parser = subparsers.add_parser("search", help="search")
+    search_parser.add_argument("query", type=str, help="query")
+    search_parser.add_argument("-l","--limit",default=5,help="optional limit")
+    
+    
     args = parser.parse_args()
+    
+    
 
     match args.command:
+        case "verify":
+            ss.verify_model()
+        case "embed_text":
+            ss.embed_text(args.text)
+        case "verify_embeddings":
+            ss.verify_embeddings()
+        case "embed_query":
+            ss.embed_query_text(args.query)
+        case "search":
+            search_command(args.query,int(args.limit))
         case _:
             parser.print_help()
 
+def search_command(query: str, limit: int) -> None:
+    search_instance = ss.SemanticSearch()
+    documents = helpers.load_movies()["movies"]
+    embeddings = search_instance.load_or_create_embeddings(documents)
+    results = search_instance.search(query,limit)
+    i=1
+    for result in results:
+        print(f'{i}. {result["title"]} {result["score"]}') 
+        print(f'{result["description"]:.80} ...')
+        i+=1
+    
+    
 
 if __name__ == "__main__":
     main()

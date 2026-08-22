@@ -10,7 +10,7 @@ for index in range(len(stopwords_list)):
     stopwords_list[index] = (stopwords_list[index].translate(table).lower())
 stopwords_set = set(stopwords_list)
 
-def load_movies():
+def load_movies() -> dict:
     with open("data/movies.json", 'r', encoding='utf-8') as movies_file_P:
         return json.load(movies_file_P)
 
