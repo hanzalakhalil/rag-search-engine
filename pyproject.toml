@@ -9,3 +9,8 @@ dependencies = [
     "numpy==2.3.3",
     "sentence-transformers>=6.0.0",
 ]
+
+[tool.uv.workspace]
+members = [
+    "rag-search-engine",
+]
