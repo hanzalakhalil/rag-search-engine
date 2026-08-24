@@ -23,6 +23,7 @@ def main() -> None:
     chunk_parser = subparsers.add_parser("chunk", help="for chunking")
     chunk_parser.add_argument("text", type=str, help="the text to make chunks out of")
     chunk_parser.add_argument("--chunk-size", default=200, type=int, help="number of words per chunk")
+    chunk_parser.add_argument("--overlap", type=int, help="overlap between chunks")
     
     args = parser.parse_args()
     
@@ -40,7 +41,7 @@ def main() -> None:
         case "search":
             search_command(args.query,int(args.limit))
         case "chunk":
-            chunk_command(chunk_size= args.chunk_size,text=args.text,)
+            chunk_command(args.text,args.chunk_size,args.overlap)
         case _:
             parser.print_help()
 
@@ -55,15 +56,18 @@ def search_command(query: str, limit: int) -> None:
         print(f'{result["description"]:.80} ...')
         i+=1
     
-def chunk_command(text:str , chunk_size : int):
+def chunk_command(text:str , chunk_size : int, overlap: int):
     text_list = text.split()
     chunk_list=[]
     for i in range(0,len(text_list),chunk_size):
-        if(i+chunk_size < len(text_list)):
-            chunk_list.append(text_list[i:i+chunk_size])
+        if(i-overlap+chunk_size < len(text_list)):
+            if(i-overlap<0):
+                chunk_list.append(text_list[i:i+chunk_size])
+            else:
+                chunk_list.append(text_list[i-overlap:i-overlap+chunk_size])
+                
         else:
-            chunk_list.append(text_list[i:])
-
+            chunk_list.append(text_list[i-overlap:])
             
     print(f"Chunking {len(text)} characters")
     i=0 
