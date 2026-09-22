@@ -19,7 +19,7 @@ def main() -> None:
     search_parser = subparsers.add_parser("search", help="search")
     search_parser.add_argument("query", type=str, help="query")
     search_parser.add_argument("-l","--limit",default=5,help="optional limit")
-    
+     
     chunk_parser = subparsers.add_parser("chunk", help="for chunking")
     chunk_parser.add_argument("text", type=str, help="the text to make chunks out of")
     chunk_parser.add_argument("--chunk-size", default=200, type=int, help="number of words per chunk")

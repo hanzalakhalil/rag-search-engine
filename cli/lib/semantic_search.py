@@ -4,6 +4,8 @@ import os
 import util.helpers as helpers
 import json
 import re
+import util.constants as constants
+
 
 
 class SemanticSearch:
@@ -72,13 +74,13 @@ class ChunkedSemanticSearch(SemanticSearch):
         self.documents = documents
         chunk_list:list[str]=[]
         metadata:list[dict]=[]
-        for movie_idx,doc in enumerate(self.documents):
-            self.document_map[movie_idx]=doc
+        for doc in documents:
+            self.document_map[doc["id"]] = doc
         temp_list:list[str]=[]
         for movie_idx,doc in enumerate(self.documents):
             if doc["description"]=="":
                 continue
-            for chunk in semantic_chunk_command(doc["description"],4,1):
+            for chunk in semantic_chunk(doc["description"],4,1):
                 temp=""
                 for sen in chunk:
                     temp= temp+ " " + sen 
@@ -98,8 +100,8 @@ class ChunkedSemanticSearch(SemanticSearch):
     
     def load_or_create_chunk_embeddings(self, documents: list[dict]) -> np.ndarray:
         self.documents = documents
-        for movie_idx,doc in enumerate(self.documents):
-            self.document_map[movie_idx]=doc
+        for doc in documents:
+            self.document_map[doc["id"]] = doc
         if os.path.exists("cache/chunk_embeddings.npy") and os.path.exists("cache/chunk_metadata.json"):
             self.chunk_embeddings=np.load("cache/chunk_embeddings.npy",)
             with open("cache/chunk_metadata.json", "r") as f:
@@ -107,6 +109,18 @@ class ChunkedSemanticSearch(SemanticSearch):
             self.chunk_metadata = data["chunks"]
             return self.chunk_embeddings
         return self.build_chunk_embeddings(self.documents)
+    
+    def search_chunks(self,query:str,limit:int=10) ->list[dict]:
+        query_embedding : list[float] = []
+        chunk_score_list: list[dict] = []
+        query_embedding = self.generate_embedding(query)
+        self.chunk_embeddings = np.load("cache/chunk_embeddings.npy")
+        data = {}
+        with open("cache/chunk_metadata.json", "r") as f:
+            data = json.load(f)
+        self.chunk_metadata=data["chunks"]
+
+        
 
   
 def verify_embeddings() -> None:
@@ -181,7 +195,7 @@ def chunk_command(text:str , chunk_size : int, overlap: int):
         print(f"{i+1}. {temp}")
         i+=1
         
-def semantic_chunk_command(text:str , max_chunk_size : int, overlap: int) -> list:
+def semantic_chunk(text:str , max_chunk_size : int, overlap: int) -> list:
     text_list = re.split(r"(?<=[.!?])\s+",text) 
     chunk_list=[]
     for i in range(0,len(text_list),max_chunk_size-overlap):
@@ -191,9 +205,37 @@ def semantic_chunk_command(text:str , max_chunk_size : int, overlap: int) -> lis
             break
     return chunk_list
 
+def semantic_chunk_command(text:str , max_chunk_size : int, overlap: int):
+    chunks = semantic_chunk(text, max_chunk_size, overlap)
+    print(f"Semantically chunking {len(text)} characters")
+    for i, chunk in enumerate(chunks):
+        print(f"{i + 1}. {chunk}")
+
 def embed_chunks():
     chunked_semantic_search = ChunkedSemanticSearch()
     documents = helpers.load_movies()["movies"]
     embeddings = chunked_semantic_search.load_or_create_chunk_embeddings(documents)
     print(f"Generated {len(embeddings)} chunked embeddings")
     
+def format_search_result(
+    doc_id: int, title: str, document: str, score: float, **metadata
+):
+    """Create standardized search result
+
+    Args:
+        doc_id: Document ID
+        title: Document title
+        document: Display text (usually short description)
+        score: Relevance/similarity score
+        **metadata: Additional metadata to include
+
+    Returns:
+        Dictionary representation of search result
+    """
+    return {
+        "id": doc_id,
+        "title": title,
+        "document": document,
+        "score": round(score, constants.SCORE_PRECISION),
+        "metadata": metadata if metadata else {},
+    }
