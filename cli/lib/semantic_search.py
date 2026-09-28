@@ -185,14 +185,20 @@ class ChunkedSemanticSearch(SemanticSearch):
         with open("cache/chunk_metadata.json", "r") as f:
             data = json.load(f)
         self.chunk_metadata=data["chunks"]
+        score_dict = {}
         for i,chunk_vec in enumerate(self.chunk_embeddings):
-            # Similarity between the query and this chunk (result not stored yet).
-            cosine_similarity(query_embedding,chunk_vec)
+            # Similarity between the query and this chunk.
+            score = cosine_similarity(query_embedding,chunk_vec)
             
             # Map the chunk back to the movie it was taken from.
             meta = self.chunk_metadata[i]
             movie_idx = meta["movie_idx"]
-            doc = self.documents[movie_idx]
+            chunk_idx = meta["chunk_idx"]
+            
+            #iu 
+            # chunk_score_list.append({"chunk_idx" : chunk_idx,"movie_idx" : movie_idx, "score" : score})
+            if(not(movie_idx in score_dict) or score_dict.get(movie_idx)<score):
+                score_dict[movie_idx]=score
   
 def verify_embeddings() -> None:
     """CLI helper: load/build movie embeddings and print their shape."""
